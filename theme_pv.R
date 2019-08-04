@@ -2,7 +2,7 @@
 library(ggthemes)
 library(ggplot2)
 
-theme_new <- function(base_size = 11,
+theme_pv <- function(base_size = 12,
                       base_family = 'mono',
                       base_rect_size = base_size / 170){
   
@@ -13,22 +13,29 @@ theme_new <- function(base_size = 11,
       color = 'black',
       face = "bold",
       hjust = 0,
-      size = 16),
+      size = 17),
     axis.title = element_text(
       color = rgb(105, 105, 105, maxColorValue = 255),
-      size = rel(0.75)),
+      size = rel(1.1), margin = margin(t = 20, r = 20)),
+    
+    axis.title.x = element_text(margin = margin(t = 10)),
+    axis.title.y = element_text(margin = margin(r = 10)),
+    
     axis.text = element_text(
       color = rgb(105, 105, 105, maxColorValue = 255),
-      size = rel(0.5)),
+      size = rel(1)),
     panel.grid.major.y = element_line(
       rgb(0, 0, 0, maxColorValue = 255),
       linetype = "dotted",
-      size = rel(1)),
+      size = rel(2)),
     panel.grid.minor.x = element_blank(),
     panel.grid.major.x = element_blank(),
     panel.background = element_blank(),
     axis.ticks.length.y = unit(.25, "cm"),
     axis.ticks.length.x = unit(.25, "cm"),
-    legend.key = element_rect(fill = "white", colour = NA)
+    legend.key = element_rect(fill = "white", colour = NA),
+    legend.title = element_text(size = rel(1.2))
+    # guides(colour = guide_legend(override.aes = list(alpha = 1)))
+    
   )
 }

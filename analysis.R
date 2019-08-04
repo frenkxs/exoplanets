@@ -8,6 +8,7 @@ library(ggthemes)
 library(ggiraph)
 
 
+
 # 1) Import the dataset exo_data.csv as a tibble. Columns 1, 16, 17, 18, 25 should # # be characters. Columns 2, 14 should be factors. Column 15 should be integers. The # remaining columns should be doubles.
 
 
@@ -24,6 +25,10 @@ exo <- exo %>% subset(not( meth %>% is.na() ) )
 
 
 # 3) Create a histogram for the log-distances from the Sun, highlighting the methods of discovery.
+
+# Load custome theme (the file must be in the same directory as the main R code (analysis.R))
+source('theme_pv.R')
+
 ggplot(data = exo, aes(dist %>% log, color = meth, fill = meth)) +
   geom_histogram(alpha = 0.5, aes(fill = meth)) +
   ggtitle('Number of exoplanets by their distance \nfrom the sun (log parsec)') +
@@ -37,22 +42,34 @@ ggplot(data = exo, aes(dist %>% log, color = meth, fill = meth)) +
 # 4) Create scatterplots of the log-mass versus log-distances, separating by methods of discovery. Hovering with the cursor highlights the point and displays its name, and, if you click, the exoplanet's page on the Open Exoplanet Catalogue will be opened. (paste the id after http://www.openexoplanetcatalogue.com/planet/ ).
 # 
 
+# static plot
 p2 <- ggplot(data = exo, aes(mass %>% log, dist %>% log)) +
-  geom_point(aes(color = meth),alpha = 0.5) +
-  ggtitle('log mass vs log distance from the sun') +
-  theme_new() +
-  scale_color_viridis_d(option = "B") 
+  geom_point(aes(color = meth),alpha = 0.4) +
+  ggtitle('Mass of the planet versus\nits distance from the Sun') +
+  theme_pv() +
+  xlab('Mass (log scale)') +
+  ylab('Distance from the sun (log scale)') +
+  scale_color_viridis_d(option = "B", name = "Method of\ndiscovery") +
+  
+  # override the alpha level for the legend key set in geom_point
+  guides(colour = guide_legend(override.aes = list(alpha = 1)))
+  
+# add another column to the dataset specifying the url to each planet
+exo$onclick = sprintf("window.open(\"%s%s\")",
+                      "http://www.openexoplanetcatalogue.com/planet/",
+                      exo$id)
 
-p3 <- p2 + geom_point_interactive(aes(tooltip = id, color = meth, data_id = id), 
-                                  alpha = 0.5, 
-                                  size = 2) + 
-  scale_color_viridis_d(option = "B") 
 
-ggiraph(code = print(p3), width = 0.65)
+# add interactive layers - tooltip, colour and onclick
+p3 <- p2 + geom_point_interactive(aes(tooltip = id, 
+                                      color = meth, 
+                                      data_id = id,
+                                      onclick = onclick), 
+                                  alpha = 0.2,
+                                  size = 1.2) 
+# print off the plot
+ggiraph(code = print(p3), width = 0.75)
 
-crimes$onclick = sprintf("window.open(\"%s%s\")",
-                         "http://en.wikipedia.org/wiki/",
-                         as.character(crimes$state))
 
 
 
