@@ -6,6 +6,7 @@ library(ggplot2)
 library(viridis)
 library(ggthemes)
 library(ggiraph)
+library(tidyr)
 
 
 
@@ -71,5 +72,53 @@ p3 <- p2 + geom_point_interactive(aes(tooltip = id,
 ggiraph(code = print(p3), width = 0.75)
 
 
+# 5) Rename the radius into jupiter_radius, and create a new column called earth_radius which is 11.2 times the Jupiter radius.
 
+exo <- exo %>% 
+  # add new column earth_radius
+  mutate(earth_radius =  radius * 11.2) %>% 
+  
+  # rename radius to jupiter_radius
+  rename(jupiter_radius = radius) %>%
+  
+  # reorder the columns so that earth_radius comes right after jupiter_radius
+  select(id:jupiter_radius, earth_radius, period:onclick) 
+
+  
+# 6) Focus only on the rows where log-radius and log-period have no missing values, and perform kmeans with four clusters on these two columns.
+
+# get a new dataset with just the two radii
+radii <- exo %>% 
+  select(id, earth_radius, period) %>%
+  mutate(earth_radius = earth_radius %>% log, 
+         period = period %>% log,
+         type = NA)
+  
+# runn kmeans algorithm and store the results
+fit <- kmeans(na.omit(radii[, 2:3]), 4)
+
+
+# 7*) Add the clustering labels to the dataset through a new factor column called 'type', with levels 'rocky', 'hot_jupiters', 'cold_gas_giants', 'others'; similarly to https://en.wikipedia.org/wiki/Exoplanet#/media/File:ExoplanetPopulations-20170616.png
+
+# Add the cluster labels to the radii dataset, rows with missing values in either earth_radius or period will have also have the type label NA
+radii$type[which( complete.cases(radii[, 2:3]) )] <- fit$cluster
+
+# Copy type column from radii over to exo
+exo <- exo %>%
+  mutate(type = factor(radii$type)) %>%
+  mutate(type = factor(radii$type, levels = c('hot_jupiters',
+                                              'cold_gas_giants',
+                                              'others',
+                                              'rocky')) )
+
+df <- mtcars %>% mutate(cyl = factor(cyl, levels = c(4, 6, 8)))
+
+
+ggplot(exo, aes(x = log(period), y = log(earth_radius))) +
+  geom_point(aes(color = type))
+
+# hot jupiters = 1
+# rocky =  4
+# cold_gas_giants = 2
+# others = 3
 
