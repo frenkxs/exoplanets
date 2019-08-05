@@ -7,6 +7,7 @@ library(viridis)
 library(ggthemes)
 library(ggiraph)
 library(tidyr)
+library(lubridate)
 
 
 
@@ -95,7 +96,7 @@ radii <- exo %>%
          type = NA)
   
 # runn kmeans algorithm and store the results
-fit <- kmeans(na.omit(radii[, 2:3]), 4)
+fit <- kmeans(na.omit(radii[, 2:3]), centers = 4, iter.max = 20, nstart = 3)
 
 
 # 7*) Add the clustering labels to the dataset through a new factor column called 'type', with levels 'rocky', 'hot_jupiters', 'cold_gas_giants', 'others'; similarly to https://en.wikipedia.org/wiki/Exoplanet#/media/File:ExoplanetPopulations-20170616.png
@@ -103,22 +104,32 @@ fit <- kmeans(na.omit(radii[, 2:3]), 4)
 # Add the cluster labels to the radii dataset, rows with missing values in either earth_radius or period will have also have the type label NA
 radii$type[which( complete.cases(radii[, 2:3]) )] <- fit$cluster
 
-# Copy type column from radii over to exo
+plot(log(exo$period), log(exo$earth_radius), col = radii$type)
+
+# Copy type column from radii over to exo and rename the factor labels
 exo <- exo %>%
   mutate(type = factor(radii$type)) %>%
-  mutate(type = factor(radii$type, levels = c('hot_jupiters',
-                                              'cold_gas_giants',
-                                              'others',
-                                              'rocky')) )
+  mutate(type = recode(type, '1' = 'hot_jupiters',
+                       '2' = 'cold_gas_giants',
+                       '3' = 'others',
+                       '4' = 'rocky')) 
 
-df <- mtcars %>% mutate(cyl = factor(cyl, levels = c(4, 6, 8)))
+# 8) Use a histogram and a violin plot to illustrate how these clusters relate to the log-mass of the exoplanet.
+exo %>% drop_na(type) %T>%
+{print(ggplot(., aes(x = mass %>% log, fill = type)) +
+  geom_histogram(aes(colour = type), alpha = 0.2) +
+    theme_pv())}
+
+ggplot(filter(exo, !is.na(type)), aes(fill = type)) +
+  geom_violin(aes(colour = type, y = mass %>% log, x = type), alpha = 0.8) +
+  theme_pv()
 
 
-ggplot(exo, aes(x = log(period), y = log(earth_radius))) +
-  geom_point(aes(color = type))
+# 9*) transform r_asc and decl into the equivalent values in seconds and use these as coordinates to represent a celestial map for the exoplanets.
 
-# hot jupiters = 1
-# rocky =  4
-# cold_gas_giants = 2
-# others = 3
+ggplot(exo, aes(x = period_to_seconds(hms(r_asc)), y = period_to_seconds(hms(decl)))) +
+  geom_point()
+
+
+# 10) create an animated time series where multiple lines illustrate the evolution over time of the total number of exoplanets discovered for each method up to that year.
 
