@@ -127,9 +127,32 @@ ggplot(filter(exo, !is.na(type)), aes(fill = type)) +
 
 # 9*) transform r_asc and decl into the equivalent values in seconds and use these as coordinates to represent a celestial map for the exoplanets.
 
+# convert the time value in r_asc and decl to seconds
+exo <- exo %>%
+  mutate(r_asc = period_to_seconds(hms(r_asc)),
+         decl = period_to_seconds(hms(decl)))
+
+# scatterplot with r_asc and decl
 ggplot(exo, aes(x = period_to_seconds(hms(r_asc)), y = period_to_seconds(hms(decl)))) +
-  geom_point()
+  geom_point(alpha = 0.3) +
+  theme_pv()
 
 
 # 10) create an animated time series where multiple lines illustrate the evolution over time of the total number of exoplanets discovered for each method up to that year.
 
+discovery <- exo %>% 
+  group_by(meth, year) %>%
+  summarise(count = n())
+
+ggplot(discovery, aes(x = year, y = count)) +
+  geom_line(aes(colour = meth, fill = meth))
+
+# 11*) create an interactive plot with Shiny where you can select the year (slider widget, with values >= 2009) and exoplanet type. Exoplanets appear as points on a scatterplot (log-mass vs log-distance coloured by method) only if they have already been discovered. If type is equal to "all" all types are plotted together.
+# 
+# 12) Use STAN to perform likelihood maximisation on a regression model where log-period is the response variable and the logs of host_mass, host_temp and axis are the covariates (exclude rows that contain at least one missing value). Include an intercept term in the regression model.
+# 
+# 13) Extend the model in (12) by specifying standard Gaussian priors for the intercept and slope terms, and a Gamma(1,1) prior for the standard deviation of errors. Obtain approximate samples from the posterior distribution of the model. 
+# 
+# 14) Include in your RMarkdown document a few posterior summaries plots (e.g. estimated posterior densities) from (13) for the parameters of interest.
+# 
+# 15) Embed the Shiny app from (11) in your RMarkdown document.
