@@ -8,6 +8,7 @@ library(ggthemes)
 library(ggiraph)
 library(tidyr)
 library(lubridate)
+library(gganimate)
 
 
 
@@ -140,12 +141,60 @@ ggplot(exo, aes(x = period_to_seconds(hms(r_asc)), y = period_to_seconds(hms(dec
 
 # 10) create an animated time series where multiple lines illustrate the evolution over time of the total number of exoplanets discovered for each method up to that year.
 
-discovery <- exo %>% 
-  group_by(meth, year) %>%
-  summarise(count = n())
 
-ggplot(discovery, aes(x = year, y = count)) +
-  geom_line(aes(colour = meth, fill = meth))
+# get counts and cumulative counts of discovered exoplanets per year and per method
+discovery <- exo %>% 
+  group_by(year, meth, .drop = FALSE) %>% 
+  count() %>% 
+  group_by(meth) %>%
+  mutate(cum = cumsum(n))
+
+# arrange the data by year and the number of planet discovered by each method
+discovery <- discovery %>%
+  arrange(year, cum)
+
+# add order column to indicate relative order of each method for each year  
+discovery <-  discovery %>%
+  ungroup() %>%
+  mutate(order = rep(seq(from = 5, to = 1, by = - 1), nrow(discovery) / 5))
+
+
+ 
+# line plot with animation
+ggplot(data = discovery %>% drop_na(), aes(x = year, y = (cum %>% log), colour = meth)) +
+  geom_line() +
+  geom_segment(aes(xend = 2018, yend = (cum %>% log)), linetype = 2, colour = 'grey') + 
+  geom_point(size = 2) + 
+  geom_text(aes(x = 2025, label = meth), hjust = 0) + 
+  transition_reveal(year) + 
+  coord_cartesian(clip = 'off') + 
+  labs(title = 'Discovery of exoplanets', y = 'Number of exoplanets discovered') + 
+  theme_pv() +
+  theme(plot.margin = margin(5.5, 40, 5.5, 5.5),
+        legend.position = 'none')
+
+# bar chart race 
+# see: https://emilykuehler.github.io/bar-chart-race/
+
+barplot_race_blur <- ggplot(aes(ordering, group = name), data = final_df) +
+  geom_tile(aes(y = rolling_win_count / 2, 
+                height = rolling_win_count,
+                width = 0.9, fill=gender), alpha = 0.9) +
+  scale_fill_manual(values = my_pal) +
+  geom_text(aes(y = rolling_win_count, label = name), family=my_font, nudge_y = -2, size = 3) +
+  geom_text(aes(y = rolling_win_count, label = rolling_win_count), family=my_font, nudge_y = 0.5) +
+  geom_text(aes(x=1,y=18.75, label=paste0(curr_year)), family=my_font, size=8, color = 'gray45') +
+  coord_cartesian(clip = "off", expand = FALSE) +
+  coord_flip() +
+  labs(title = 'Most Grand Slam Singles Championships',
+       subtitle = 'Open Era Only',
+       caption = 'data source: Wikipedia | plot by @emilykuehler',
+       x = '',
+       y = '') +
+  transition_states(frame_id, 
+                    transition_length = 4, state_length = 3) +
+  ease_aes('cubic-in-out')
+
 
 # 11*) create an interactive plot with Shiny where you can select the year (slider widget, with values >= 2009) and exoplanet type. Exoplanets appear as points on a scatterplot (log-mass vs log-distance coloured by method) only if they have already been discovered. If type is equal to "all" all types are plotted together.
 # 
