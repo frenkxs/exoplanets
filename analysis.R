@@ -156,7 +156,15 @@ discovery <- discovery %>%
 # add order column to indicate relative order of each method for each year  
 discovery <-  discovery %>%
   ungroup() %>%
-  mutate(order = rep(seq(from = 5, to = 1, by = - 1), nrow(discovery) / 5))
+  mutate(order = rep(seq(1:5), nrow(discovery) / 5))
+
+# get the log values in for better visualisation
+discovery <- discovery %>%
+  mutate(log_cum = cum %>% log)
+
+# replace the infinity values for cum == 0
+discovery <- discovery %>%
+  mutate(log_cum = replace(log_cum, log_cum < 0, 0))
 
 
  
@@ -173,28 +181,41 @@ ggplot(data = discovery %>% drop_na(), aes(x = year, y = (cum %>% log), colour =
   theme(plot.margin = margin(5.5, 40, 5.5, 5.5),
         legend.position = 'none')
 
-# bar chart race 
-# see: https://emilykuehler.github.io/bar-chart-race/
 
-barplot_race_blur <- ggplot(aes(ordering, group = name), data = final_df) +
-  geom_tile(aes(y = rolling_win_count / 2, 
-                height = rolling_win_count,
-                width = 0.9, fill=gender), alpha = 0.9) +
-  scale_fill_manual(values = my_pal) +
-  geom_text(aes(y = rolling_win_count, label = name), family=my_font, nudge_y = -2, size = 3) +
-  geom_text(aes(y = rolling_win_count, label = rolling_win_count), family=my_font, nudge_y = 0.5) +
-  geom_text(aes(x=1,y=18.75, label=paste0(curr_year)), family=my_font, size=8, color = 'gray45') +
+# bar chart race 
+
+discovery$meth <- factor(discovery$meth, 
+                         levels = c("timing", "imaging", "microlensing",
+                                    'RV', 'transit'))
+
+
+barplot_race_blur <- ggplot(data = discovery, aes(x = meth, group = meth)) +
+  geom_tile(aes(y = log_cum / 2, 
+                height = log_cum,
+                width = 0.9, fill = meth), alpha = 0.5) +
+  geom_text(aes(y = log_cum, label = as.character(cum)), 
+            size = 7, nudge_y = 0.5, family = 'mono') +
+  geom_text(aes(x = 1.5, y = (2015 %>% log), label = paste0(year)), size = 8, color = 'gray45', family = 'mono') +
   coord_cartesian(clip = "off", expand = FALSE) +
   coord_flip() +
-  labs(title = 'Most Grand Slam Singles Championships',
-       subtitle = 'Open Era Only',
-       caption = 'data source: Wikipedia | plot by @emilykuehler',
+  labs(title = 'Discovery of exoplanets',
+       caption = 'data source: Wikipedia | plot by @frenkxs',
        x = '',
        y = '') +
-  transition_states(frame_id, 
-                    transition_length = 4, state_length = 3) +
-  ease_aes('cubic-in-out')
-
+  transition_states(year,
+                    transition_length = 12, state_length = 10) +
+  ease_aes('cubic-in-out') +
+  theme_pv() +
+  scale_fill_viridis_d(option = 'E') +
+  scale_y_continuous(breaks = c(log(1), log(10), log(50), 
+                                log(300), log(2000)),
+                     label = c('1', '10', '50','300','2000'),
+                     limits = c(log(1), log(20000))) +
+  theme(legend.position = 'none',
+        panel.grid.major.y = element_blank(),
+        axis.ticks.y = element_blank())
+        # axis.text.y = element_blank())
+barplot_race_blur
 
 # 11*) create an interactive plot with Shiny where you can select the year (slider widget, with values >= 2009) and exoplanet type. Exoplanets appear as points on a scatterplot (log-mass vs log-distance coloured by method) only if they have already been discovered. If type is equal to "all" all types are plotted together.
 # 
