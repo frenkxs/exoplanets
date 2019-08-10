@@ -15,11 +15,14 @@ function(input, output) {
 
     output$main <- renderPlot({
         
+        # filter data based on user input
         data <- exo %>% 
             select(year, mass, dist, type, meth) %>%
-            filter(year <= input$year, type %in% input$type)
-            
-                
+            {if('all' %in% input$type) {
+                filter(., year <= input$year)}
+                else{
+                    (filter(., year <= input$year, type %in% input$type))}
+                }
         
         # draw the histogram with the specified number of bins
         ggplot(data = data, aes(mass %>% log, dist %>% log)) +

@@ -27,9 +27,10 @@ fluidPage(
                                c('Hot Jupiter' = 'hot_jupiters',
                                  'Cold Gas Giant' = 'cold_gas_giants',
                                  'Rocky' = 'rocky',
-                                 'Other' = 'others'),
-                                 
-                               selected = levels(exo$type) )),
+                                 'Other' = 'others', 
+                                 'All' = 'all'),
+                               selected = c('all') )),
+                               # selected = levels(exo$type) )),
             
         
     # Show a plot of the generated distribution
