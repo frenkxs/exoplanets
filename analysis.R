@@ -47,7 +47,7 @@ ggplot(data = exo, aes(dist %>% log, color = meth, fill = meth)) +
 
 # static plot
 p2 <- ggplot(data = exo, aes(mass %>% log, dist %>% log)) +
-  geom_point(aes(color = meth),alpha = 0.4) +
+  geom_point(aes(color = meth), alpha = 0.4) +
   ggtitle('Mass of the planet versus\nits distance from the Sun') +
   theme_pv() +
   xlab('Mass (log scale)') +
@@ -102,10 +102,11 @@ fit <- kmeans(na.omit(radii[, 2:3]), centers = 4, iter.max = 20, nstart = 3)
 
 # 7*) Add the clustering labels to the dataset through a new factor column called 'type', with levels 'rocky', 'hot_jupiters', 'cold_gas_giants', 'others'; similarly to https://en.wikipedia.org/wiki/Exoplanet#/media/File:ExoplanetPopulations-20170616.png
 
-# Add the cluster labels to the radii dataset, rows with missing values in either earth_radius or period will have also have the type label NA
+# Add the cluster labels to the radii dataset, while skipping rows with missing values in either earth_radius or period (they will have the type label NA)
 radii$type[which( complete.cases(radii[, 2:3]) )] <- fit$cluster
 
-plot(log(exo$period), log(exo$earth_radius), col = radii$type)
+# plot(log(exo$period), log(exo$earth_radius), col = radii$type)
+# plot(log(exo$mass), log(exo$dist), col = radii$type)
 
 # Copy type column from radii over to exo and rename the factor labels
 exo <- exo %>%
@@ -151,12 +152,13 @@ discovery <- exo %>%
 
 # arrange the data by year and the number of planet discovered by each method
 discovery <- discovery %>%
-  arrange(year, cum)
+  arrange(year, cum) %>%
+  ungroup()
 
-# add order column to indicate relative order of each method for each year  
-discovery <-  discovery %>%
-  ungroup() %>%
-  mutate(order = rep(seq(1:5), nrow(discovery) / 5))
+# # add order column to indicate relative order of each method for each year  
+# discovery <-  discovery %>%
+#   ungroup() %>%
+#   mutate(order = rep(seq(1:5), nrow(discovery) / 5))
 
 # get the log values in for better visualisation
 discovery <- discovery %>%
@@ -184,41 +186,61 @@ ggplot(data = discovery %>% drop_na(), aes(x = year, y = (cum %>% log), colour =
 
 # bar chart race 
 
+# getting the data ready
+
+# reorder factors in meth for easier plotting
 discovery$meth <- factor(discovery$meth, 
                          levels = c("timing", "imaging", "microlensing",
                                     'RV', 'transit'))
 
 
-barplot_race_blur <- ggplot(data = discovery, aes(x = meth, group = meth)) +
+# add missing year 1993 (it will have the same counts as 1992, but the animation will not skip it)
+discovery <- discovery %>% 
+  add_row(year = rep(1993, 5), 
+          meth = discovery$meth[1:5],
+          n = rep(0, 5),
+          cum = discovery$cum[1:5],
+          log_cum = discovery$log_cum[1:5], .after = 5)
+
+# add missing year label for 2019
+discovery$year[is.na(discovery$year)] <- 2019
+
+# plot
+ggplot(data = discovery, aes(x = meth, group = meth)) +
   geom_tile(aes(y = log_cum / 2, 
                 height = log_cum,
-                width = 0.9, fill = meth), alpha = 0.5) +
+                width = 0.9, fill = meth), alpha = 0.7) +
   geom_text(aes(y = log_cum, label = as.character(cum)), 
-            size = 7, nudge_y = 0.5, family = 'mono') +
-  geom_text(aes(x = 1.5, y = (2015 %>% log), label = paste0(year)), size = 8, color = 'gray45', family = 'mono') +
-  coord_cartesian(clip = "off", expand = FALSE) +
+            size = 7, nudge_y = 1.1, family = 'mono') +
+  geom_text(aes(x = 1.5, y = (log(20000)), label = paste0(year)), size = 8, color = 'gray45', family = 'mono') +
   coord_flip() +
   labs(title = 'Discovery of exoplanets',
-       caption = 'data source: Wikipedia | plot by @frenkxs',
+       caption = 'plot by @frenkxs',
        x = '',
        y = '') +
   transition_states(year,
                     transition_length = 12, state_length = 10) +
   ease_aes('cubic-in-out') +
   theme_pv() +
-  scale_fill_viridis_d(option = 'E') +
+  scale_fill_viridis_d(option = 'A') +
   scale_y_continuous(breaks = c(log(1), log(10), log(50), 
                                 log(300), log(2000)),
                      label = c('1', '10', '50','300','2000'),
-                     limits = c(log(1), log(20000))) +
+                     limits = c(log(1), log(30000))) +
   theme(legend.position = 'none',
         panel.grid.major.y = element_blank(),
-        axis.ticks.y = element_blank())
-        # axis.text.y = element_blank())
-barplot_race_blur
+        axis.ticks.y = element_blank(),
+        axis.text.y = element_text(size = rel(1.3)),
+        plot.title = element_text(size = 20))
+
+
 
 # 11*) create an interactive plot with Shiny where you can select the year (slider widget, with values >= 2009) and exoplanet type. Exoplanets appear as points on a scatterplot (log-mass vs log-distance coloured by method) only if they have already been discovered. If type is equal to "all" all types are plotted together.
-# 
+#
+
+
+
+
 # 12) Use STAN to perform likelihood maximisation on a regression model where log-period is the response variable and the logs of host_mass, host_temp and axis are the covariates (exclude rows that contain at least one missing value). Include an intercept term in the regression model.
 # 
 # 13) Extend the model in (12) by specifying standard Gaussian priors for the intercept and slope terms, and a Gamma(1,1) prior for the standard deviation of errors. Obtain approximate samples from the posterior distribution of the model. 
