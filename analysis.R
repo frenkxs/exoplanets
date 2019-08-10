@@ -238,14 +238,38 @@ ggplot(data = discovery, aes(x = meth, group = meth)) +
 # 11*) create an interactive plot with Shiny where you can select the year (slider widget, with values >= 2009) and exoplanet type. Exoplanets appear as points on a scatterplot (log-mass vs log-distance coloured by method) only if they have already been discovered. If type is equal to "all" all types are plotted together.
 #
 
-
+runApp('exo_map')
 
 
 # 12) Use STAN to perform likelihood maximisation on a regression model where log-period is the response variable and the logs of host_mass, host_temp and axis are the covariates (exclude rows that contain at least one missing value). Include an intercept term in the regression model.
  
+# create a new dataset to be fed into stan
+exo_period <- exo %>%
+  select(period, host_mass, host_temp, axis) %>%
+  drop_na() %>%
+  mutate(period = period %>% log, 
+         host_mass =  host_mass %>% log, 
+         host_temp = host_temp %>% log,
+         axis = axis %>% log)
+  
+
+# Set it up in a list with the same names as in the stan file
+exo_period_lm <- list(N = nrow(exo_period),
+                     x = as.matrix(select(exo_period, host_mass, host_temp, axis)),
+                     y = exo_period$period,
+                     K = 3)
+
+
+# Maximum likelihood model
+stan_model <- stan_model('period-lm.stan')
+stan_run <- optimizing(stan_model, data = exo_period_lm)
+print(stan_run)
 
 # 13) Extend the model in (12) by specifying standard Gaussian priors for the intercept and slope terms, and a Gamma(1,1) prior for the standard deviation of errors. Obtain approximate samples from the posterior distribution of the model. 
-# 
+
+
+
+
 # 14) Include in your RMarkdown document a few posterior summaries plots (e.g. estimated posterior densities) from (13) for the parameters of interest.
 # 
 # 15) Embed the Shiny app from (11) in your RMarkdown document.
