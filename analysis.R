@@ -1,77 +1,131 @@
-# load libraries
-library(readr)
+###########################################################################
+######### Advanced Data Programming with R - Final project ################
+###########################################################################
+####################### Premysl Velek, 16213669 ###########################
+###########################################################################
+
+# This is the main source code ('analysis.R'), the final project also include further three files to run. They should all be placed in the same directory as this file: 
+
+# 1. theme_pv.R (with a custom ggpplot2 theme applied to all plots in the project) 
+# 2. a subdirectory 'exo_map' with the server and ui files to run the shiny app
+# 3. a stan file 'period-lm.stan' to fit the regression models to the data
+
+# The code assumes that the directory with all the files is the Working directory in RStudio
+
+# Clean the environment
+rm(list=ls())
+
+
+# load necessary libraries
+
+# to read in the csv file 
+library(readr) 
+library(lubridate)
+
+# to clean and manipulate the data
 library(dplyr)
 library(magrittr)
-library(ggplot2)
-library(viridis)
-library(ggthemes)
-library(ggiraph)
 library(tidyr)
-library(lubridate)
+
+# to plot the data
+library(ggplot2)
+# library(ggthemes)
+library(viridis)
+
+# to create interactive and animated plots
+library(ggiraph)
 library(gganimate)
 
 
+####################################################################################
+# 1) Import the dataset exo_data.csv as a tibble. Columns 1, 16, 17, 18, 25 should be characters. Columns 2, 14 should be factors. Column 15 should be integers. The remaining columns should be doubles.
+####################################################################################
 
-# 1) Import the dataset exo_data.csv as a tibble. Columns 1, 16, 17, 18, 25 should # # be characters. Columns 2, 14 should be factors. Column 15 should be integers. The # remaining columns should be doubles.
-
-
-# read in data, spccifying the column types
+# Read in data into a tibble, specifying the column types
 exo <- read_csv('exo_data.csv', col_types = 'cfdddddddddddficccddddddc' )
 
-# additionally we can parse the recency and right ascension to date and time respectively
+# Additionally we can parse the recency and right ascension to date and time respectively
 exo$recency <- parse_date(exo$recency, '%y/%m/%d', na = 'NA')
 exo$r_asc <- parse_time(exo$r_asc, '%H %M %OS', na = 'NA')
 
+####################################################################################
 # 2) Exclude the exoplanets with an unknown method of discovery.
+####################################################################################
 
-exo <- exo %>% subset(not( meth %>% is.na() ) )
+exo <- exo %>%
+  drop_na(meth) # using drop_na() from tidyr package
 
-
+#######################################################################################
 # 3) Create a histogram for the log-distances from the Sun, highlighting the methods of discovery.
+#######################################################################################
 
-# Load custome theme (the file must be in the same directory as the main R code (analysis.R))
+# Load custom ggplot2 theme from 'theme_pv.R'
 source('theme_pv.R')
 
-ggplot(data = exo, aes(dist %>% log, color = meth, fill = meth)) +
-  geom_histogram(alpha = 0.5, aes(fill = meth)) +
-  ggtitle('Number of exoplanets by their distance \nfrom the sun (log parsec)') +
-  theme_new() +
-  ylab('') +
-  xlab('log-distance from the Sun') +
-  scale_color_viridis_d('C', 'Method of\n discovery') +
-  scale_fill_viridis_d('Method of\n discovery') 
-
-
-# 4) Create scatterplots of the log-mass versus log-distances, separating by methods of discovery. Hovering with the cursor highlights the point and displays its name, and, if you click, the exoplanet's page on the Open Exoplanet Catalogue will be opened. (paste the id after http://www.openexoplanetcatalogue.com/planet/ ).
-# 
-
-# static plot
-p2 <- ggplot(data = exo, aes(mass %>% log, dist %>% log)) +
-  geom_point(aes(color = meth), alpha = 0.4) +
-  ggtitle('Mass of the planet versus\nits distance from the Sun') +
-  theme_pv() +
-  xlab('Mass (log scale)') +
-  ylab('Distance from the sun (log scale)') +
-  scale_color_viridis_d(option = "B", name = "Method of\ndiscovery") +
+ggplot(data = exo, aes(dist %>% log, fill = meth)) +
+  geom_histogram(alpha = 0.75, aes(fill = meth)) +
   
-  # override the alpha level for the legend key set in geom_point
+  # add custom theme
+  theme_pv() +
+  
+  # add text and descriptions
+  labs(title = 'Exploring exoplanets',
+       subtitle = 'Number of exoplanets by their distance from the Sun',
+       caption = 'Data: Open Exoplanet Catalogue\nPlot: @frenkxs',
+       x = 'Distance from the Sun (parsec, log scale)',
+       y = '') +
+  
+  scale_fill_brewer(type = 'qual', palette = 'Paired', 
+                    name = "Method of\ndiscovery") +
+  
+  # add custom tick labels to x axis (with values converted form log-parsec to parsec)
+  scale_x_continuous(breaks = c(log(1), log(10), log(100), 
+                                log(1000), log(10000)),
+                     label = c('1', '10', '100', '1000', '10000'))
+
+
+#######################################################################################
+# 4) Create scatterplots of the log-mass versus log-distances, separating by methods of discovery. Hovering with the cursor highlights the point and displays its name, and, if you click, the exoplanet's page on the Open Exoplanet Catalogue will be opened. (paste the id after http://www.openexoplanetcatalogue.com/planet/ ).
+########################################################################################
+
+# Add another column to the dataset specifying the url to each planet in the Open Exoplanet Catalogue
+exo$onclick <- sprintf("window.open(\"%s%s\")",
+                       "http://www.openexoplanetcatalogue.com/planet/",
+                       exo$id)
+
+# Start with a static plot, save it in a new container p2
+p2 <- ggplot(data = exo, aes(mass %>% log, dist %>% log)) +
+  geom_point(aes(colour = meth), alpha = 0.75) +
+  
+  # Add text and descriptions
+  labs(title = 'Exploring exoplanets',
+       subtitle = 'Mass of the planet versus its distance from the Sun',
+       caption = 'Data: Open Exoplanet Catalogue\nPlot: @frenkxs',
+       x = 'Mass of the planet in multiples of Jupiter mas (log scale)',
+       y = 'Distance from the Sun in parsecs (log scale)') +
+  
+  # Add custom theme
+  theme_pv() +
+  
+  # Add palette for categorical variables
+  scale_color_brewer(type = 'qual', palette = 'Paired', 
+                     name = "Method of\ndiscovery") +
+
+  # add custom tick labels to x and y axes (with values converted back form log scale)
+  scale_x_continuous(breaks = c(log(0.0001),log(0.01), log(1), log(100)),
+                     label = c('0.0001', '0.01', '1', '100')) +
+  
+  # Override the alpha level for the legend key set in geom_point
   guides(colour = guide_legend(override.aes = list(alpha = 1)))
   
-# add another column to the dataset specifying the url to each planet
-exo$onclick = sprintf("window.open(\"%s%s\")",
-                      "http://www.openexoplanetcatalogue.com/planet/",
-                      exo$id)
 
+# Add an interactive layers to the p2 plot - tooltip, colour and onclick
+p3 <- p2 + geom_point_interactive(aes(tooltip = id, colour = meth,
+                                      data_id = id, onclick = onclick)) 
 
-# add interactive layers - tooltip, colour and onclick
-p3 <- p2 + geom_point_interactive(aes(tooltip = id, 
-                                      color = meth, 
-                                      data_id = id,
-                                      onclick = onclick), 
-                                  alpha = 0.2,
-                                  size = 1.2) 
-# print off the plot
-ggiraph(code = print(p3), width = 0.75)
+# print off the interactive plot
+ggiraph(code = print(p3), pointsize = 8)
+
 
 
 # 5) Rename the radius into jupiter_radius, and create a new column called earth_radius which is 11.2 times the Jupiter radius.
