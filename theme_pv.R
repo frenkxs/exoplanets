@@ -44,6 +44,15 @@ theme_pv <- function(base_size = 12,
     legend.key = element_rect(fill = "white", colour = NA),
     legend.title = element_text(size = rel(1.2)),
     aspect.ratio = 0.7
-
   )
+}
+
+# Custom colour scale assigning each colour in the Colour Brewer paletter 'Paired' to one particular exoplanet type. This way, the shiny app will consistently colour-code the exoplanet types when selecting and deselecting different types in the sideline panel.
+scale_colour_pv <- function(name, ...){
+  ggplot2:::manual_scale(
+    'colour', 
+    values = setNames(c('#a6cee3', '#1f78b4', '#b2df8a', '#33a02c', '#fb9a99'), 
+                      levels(exo$type)),
+    name = name) 
+  
 }

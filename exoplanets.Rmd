@@ -1,22 +1,28 @@
-###########################################################################
-######### Advanced Data Programming with R - Final project ################
-###########################################################################
-####################### Premysl Velek, 16213669 ###########################
-###########################################################################
+---
+title: "Exploring Exoplanets"
+subtitle: "Final Project - Advanced Data Programming with R"
+author: "Premysl Velek, 16213669"
+output: html_document
+---
 
-# This is the main source code ('analysis.R'), the final project also include further three files to run. They should all be placed in the same directory as this file: 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 8)
+```
 
-# 1. theme_pv.R (with a custom ggpplot2 theme applied to all plots in the project) 
-# 2. a subdirectory 'exo_map' with the server and ui files to run the shiny app
-# 3. a stan file 'period-lm.stan' to fit the regression models to the data
+# Introduction
 
-# The code assumes that the directory with all the files is the Working directory in RStudio
+This document contains the main source code, the final project also include further three files to run. They should all be placed in the same directory as this file: 
 
-# Clean the environment
-rm(list=ls())
+1. an R file 'theme_pv.R' (with a custom ggpplot2 theme applied to all plots in the project and a custom colour palette)
+2. A subdirectory 'exo_map' with the server and ui files to run the shiny app
+3. A stan file 'period-lm.stan' to fit the regression models to the data
 
+The code assumes that the directory with all the files is the Working directory in RStudio
 
-# load necessary libraries
+## Libraries
+
+To run the code we need the following libraries:
+```{r libraries}
 
 # to read in the csv file 
 library(readr) 
@@ -37,39 +43,59 @@ library(gganimate)
 # to run th Shiny app
 library(shiny)
 
+# to knit the Rmd file
+library(knitr)
+```
 
+***
 
-####################################################################################
-# 1) Import the dataset exo_data.csv as a tibble. Columns 1, 16, 17, 18, 25 should be characters. Columns 2, 14 should be factors. Column 15 should be integers. The remaining columns should be doubles.
-####################################################################################
+# Question 1 
+#### Import the dataset exo_data.csv as a tibble. Columns 1, 16, 17, 18, 25 should be characters. Columns 2, 14 should be factors. Column 15 should be integers. The remaining columns should be doubles.
 
-# Read in data into a tibble, specifying the column types
+```{r}
+# Read in data into a tibble, specifying the column types for each column
 exo <- read_csv('exo_data.csv', col_types = 'cfdddddddddddficccddddddc' )
 
 # Additionally we can parse the recency and right ascension to date and time respectively
 exo$recency <- parse_date(exo$recency, '%y/%m/%d', na = 'NA')
 exo$r_asc <- parse_time(exo$r_asc, '%H %M %OS', na = 'NA')
+```
 
-####################################################################################
-# 2) Exclude the exoplanets with an unknown method of discovery.
-####################################################################################
 
+# Question 2
+#### Exclude the exoplanets with an unknown method of discovery.
+
+```{r}
 exo <- exo %>%
   drop_na(meth) # using drop_na() from tidyr package
+```
 
-#######################################################################################
-# 3) Create a histogram for the log-distances from the Sun, highlighting the methods of discovery.
-#######################################################################################
+***
 
-# Reorder factors in meth so that the methods are represented by the same colour throughtout the project
+# Question 3
+#### Create a histogram for the log-distances from the Sun, highlighting the methods of discovery.
+
+Before creating the first plot, we can reorder thefactors in meth varialble so that the methods are represented by the same colour in each plot throughtout the project
+
+
+```{r}
+# Reorder factors in meth
 exo$meth <- factor(exo$meth, 
                    levels = c('timing', 'imaging', 'microlensing', 'RV', 'transit'))
+```
 
+Now we load the custom ggplot2 theme, stored in the `theme_pv.R' file. We will apply this theme to all plots throghout the document. This will save as some typing as we won't need to define the theme for each individual plot in the project.
 
-
+```{r}
 # Load custom ggplot2 theme from 'theme_pv.R'
 source('theme_pv.R')
+```
 
+Finally we can create the first plot. The structure of the code for all plots will be the same. After defining the aesthetic and geometry of the plot, we add the custom theme, annotations and labels, colour palette and finally we define axis labels and ticks. 
+
+In some specific plots, some additional code will be needed (eg. animation, slight modification of the custom plot theme etc). This code will be added last. 
+
+```{r}
 ggplot(data = exo, aes(dist %>% log, fill = meth)) +
   geom_histogram(alpha = 0.75, aes(fill = meth)) +
   
@@ -90,31 +116,38 @@ ggplot(data = exo, aes(dist %>% log, fill = meth)) +
   # add custom tick labels to x axis (with values converted form log-parsec to parsec)
   scale_x_continuous(breaks = c(log(1), log(10), log(100), 
                                 log(1000), log(10000)),
-                     label = c('1', '10', '100', '1000', '10000'))
+                                label = c('1', '10', '100', '1000', '10000'))
+```
 
+***
 
-#######################################################################################
-# 4) Create scatterplots of the log-mass versus log-distances, separating by methods of discovery. Hovering with the cursor highlights the point and displays its name, and, if you click, the exoplanet's page on the Open Exoplanet Catalogue will be opened. (paste the id after http://www.openexoplanetcatalogue.com/planet/ ).
-########################################################################################
+# Question 4
+ 
+#### Create scatterplots of the log-mass versus log-distances, separating by methods of discovery. Hovering with the cursor highlights the point and displays its name, and, if you click, the exoplanet's page on the Open Exoplanet Catalogue will be opened. (paste the id after http://www.openexoplanetcatalogue.com/planet/ ).
 
-# Add another column to the dataset specifying the url to each planet in the Open Exoplanet Catalogue
+First, let's add another column to the dataset specifying the url to each planet in the Open Exoplanet Catalogue:
+
+```{r}
 exo$onclick <- sprintf("window.open(\"%s%s\")",
                        "http://www.openexoplanetcatalogue.com/planet/",
                        exo$id)
+```
 
-# Start with a static plot, save it in a new container p2
+Let's start with a static plot and save it in a new container p2:
+
+```{r}
 p2 <- ggplot(data = exo, aes(mass %>% log, dist %>% log)) +
   geom_point(aes(colour = meth), alpha = 0.75) +
   
+  # Add custom theme
+  theme_pv() +
+
   # Add text and descriptions
   labs(title = 'Exploring exoplanets',
        subtitle = 'Mass of the planet versus its distance from the Sun',
        caption = 'Data: Open Exoplanet Catalogue\nPlot: @frenkxs',
        x = 'Mass in multiples of Jupiter mass (log scale)',
        y = 'Distance from the Sun in parsecs (log scale)') +
-  
-  # Add custom theme
-  theme_pv() +
   
   # Add palette for categorical variables
   scale_color_brewer(type = 'qual', palette = 'Paired', 
@@ -126,23 +159,30 @@ p2 <- ggplot(data = exo, aes(mass %>% log, dist %>% log)) +
   
   # Override the alpha level for the legend key set in geom_point
   guides(colour = guide_legend(override.aes = list(alpha = 1)))
-  
+```
 
-# Add an interactive layers to the p2 plot - tooltip, colour and onclick
+Now we can add an interative layer to the p2 plot - tooltip, colour and onclick and print it off using the girafe function in the ggiraph library. 
+
+```{r}
 p3 <- p2 + geom_point_interactive(aes(tooltip = id, colour = meth,
                                       data_id = id, onclick = onclick)) 
 
 # Print off the interactive plot
 girafe(ggobj = p3) %>%
   
-  # Allow zooming, colour the labels with planet id according to method of discovery
+  # Allow zooming and colour the labels with planet id according to method of discovery
   girafe_options(opts_zoom(min = 0.5, max = 4), 
                  opts_tooltip(use_fill = TRUE, use_stroke = TRUE))
+```
 
-########################################################################################
-# 5) Rename the radius into jupiter_radius, and create a new column called earth_radius which is 11.2 times the Jupiter radius.
-########################################################################################
+***
 
+# Question 5
+#### Rename the radius into jupiter_radius, and create a new column called earth_radius which is 11.2 times the Jupiter radius.
+
+We first add a new column with a value based on the radius variable and then rename the radius to jupiter_radius. Lastly we can also reorder the columns so that the two radii are next to each other. (Rather than earth_radius being tucked to the end of the tibble.)
+
+```{r}
 exo <- exo %>% 
   
   # Add new column earth_radius
@@ -153,11 +193,16 @@ exo <- exo %>%
   
   # Reorder the columns so that earth_radius comes right after jupiter_radius
   select(id:jupiter_radius, earth_radius, period:onclick) 
+```
 
-########################################################################################
-# 6) Focus only on the rows where log-radius and log-period have no missing values, and perform kmeans with four clusters on these two columns.
-########################################################################################
+***
 
+# Question 6
+#### Focus only on the rows where log-radius and log-period have no missing values, and perform kmeans with four clusters on these two columns.
+
+Let's create a new dataset so it's easier to work with. This new dataset will only have two variables: earth_radius, and period. As we are at it, we can as well compute the logs of both earth_radius and period.
+
+```{r}
 exo_type <- exo %>% 
   
   # Create a new dataset with just the three variables: id, earth_radius and period
@@ -167,25 +212,40 @@ exo_type <- exo %>%
   mutate(earth_radius = earth_radius %>% log, 
          period = period %>% log,
          type = NA) 
-  
-#set seed so the clusters and their labels can be easily reproduced (this will help to keep the mapping of the clusters to the exoplanets type consistent for multiple runs of the code, see below)
-set.seed(12)
+```
 
+Let's also set seed so that the clusters and their labels can be easily reproduced. This will also help to keep the mapping of the clusters to the exoplanets type consistent for multiple runs of the code.
+
+```{r}
+set.seed(12)
+```
+
+Finally we can run the kmeans algorithm on the two variables. We will store the results in a new container 'fit'. We will only use the rows with no missing values.
+
+```{r}
 # run kmeans algorithm and store the results in fit. (filter out all missing values)
-fit <- exo_type[, 1:2] %>%
+fit <- exo_type %>%
   drop_na() %>%
   kmeans(., centers = 4, iter.max = 120, nstart = 30)
+```
 
-########################################################################################
-# 7*) Add the clustering labels to the dataset through a new factor column called 'type', with levels 'rocky', 'hot_jupiters', 'cold_gas_giants', 'others'; similarly to https://en.wikipedia.org/wiki/Exoplanet#/media/File:ExoplanetPopulations-20170616.png
-########################################################################################
+***
 
-# Add the cluster labels to the exo_type dataset, while skipping rows with missing values in either earth_radius or period (they will have the type label NA) We select the complete rows by selecting the indices in exo_type$type that correspond to rows with no missing values.
+# Question 7
+#### Add the clustering labels to the dataset through a new factor column called 'type', with levels 'rocky', 'hot_jupiters', 'cold_gas_giants', 'others'; similarly to https://en.wikipedia.org/wiki/Exoplanet#/media/File:ExoplanetPopulations-20170616.png
+
+
+The labels with the clusters from the kmeans algorithm are stored in fit$cluster. We can add the cluster labels to the exo_type dataset, but we need to first make sure we skip rows with missing values in either earth_radius or period (they will have the type label NA).
+
+We can select the complete rows by selecting the indices in 'exo_type$type' that correspond to rows with no missing values. This cleaned vector will have the same length as 'fit$cluster' and the labels in fit$cluster will correspond to the exoplanet row in 'exo_type'
+
+```{r}
 exo_type$type[which( complete.cases(exo_type[, 1:2]) )] <- fit$cluster
+```
 
+Now we can plot the clusters to help us map the clusters to the exoplanet types. 
 
-# plot the clusters to help map the clusters to the exoplanet types. 
-
+```{r}
 ggplot(exo, aes(log(period), log(earth_radius))) +
          geom_point(aes(colour = factor(exo_type$type)), alpha = 0.7) +
          geom_point(data = as.data.frame(fit$centers), aes(x = period, y = earth_radius),
@@ -194,19 +254,20 @@ ggplot(exo, aes(log(period), log(earth_radius))) +
                      label = c(0.001, '0.1', '1', '10')) +
   scale_x_continuous(breaks = c(log(0.001), log(0.1), log(1), log(10)),
                      label = c(0.001, '0.1', '1', '10'))
+```
 
 
+Inspecting the above plot, we can assume that hot_jupiters will be planets with large radius and their orbit period will be shorter (ie. they are closer to their star). Cold gas giant will be big in radius and far from their star (ie long period). Rocky planets will be closer to Earth proportions in term of radius and period, and have in general smaller radius.
 
+Based on the plot above we arrive at the following mapping key:
+ - '1' = 'others'
+ - '2' = 'rocky'
+ - '3' = 'hot_jupiters',
+ - '4' = 'cold_gas_giants'
 
-# I assume hot_jupiters will be planets with large radius and their orbit period will be shorter (ie. they are closer to their star). Cold gas giant will be big in radius and far from their star (ie long period). Rocky planets will be closer to Earth proportions in term of radius and period, and have in general smaller radius.
+Let's rename the factors then. We can simply copy over the `type` variable from `exo_type` to `exo` and rename the factor labels.
 
-#Based on the plot above the following mapping has been determined:
-# '1' = 'others'
-# '2' = 'rocky'
-# '3' = 'hot_jupiters',
-# '4' = 'cold_gas_giants'
-
-
+```{r}
 # Copy type column type from exo_type over to exo and rename the factor labels
 exo <- exo %>%
   mutate(type = factor(exo_type$type)) %>%
@@ -214,11 +275,14 @@ exo <- exo %>%
                              '2' = 'rocky',
                              '3' = 'hot_jupiters',
                              '4' = 'cold_gas_giants')) 
+```
 
-########################################################################################
-# 8) Use a histogram and a violin plot to illustrate how these clusters relate to the log-mass of the exoplanet.
-########################################################################################
 
+# Question 8
+#### Use a histogram and a violin plot to illustrate how these clusters relate to the log-mass of the exoplanet.
+
+
+```{r}
 # plotting the histogram with removed NAs in type variable
 exo %>% drop_na(type) %$%
   ggplot(., aes(x = mass %>% log)) +
@@ -241,6 +305,8 @@ exo %>% drop_na(type) %$%
   # Add custom tick labels to x axis (with values converted form log-parsec to parsec)
   scale_x_continuous(breaks = c(log(0.001), log(0.1), log(10)),
                      label = c(0.001, '0.1', '10'))
+```
+
 
 
 # Violin plot

@@ -1,39 +1,37 @@
-#
-# This is the user-interface definition of a Shiny web application. You can
-# run the application by clicking 'Run App' above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
 
 library(shiny)
 
-# Define UI for application that draws a histogram
-fluidPage(
+# Define UI for application that draws 
+fluidPage(tags$head(tags$style(
+    HTML('
+
+        body, label, input, button, select { 
+          font-family: "Courier New";
+        }'))),
 
     # Application title
-    titlePanel("Exoplanets"),
+    titlePanel("Exploring exoplanets"),
 
-    # Sidebar with a slider input for number of bins
+    # Sidebar for user input 
     sidebarLayout(
-        sidebarPanel(
+        sidebarPanel(id="sidebar",
+            
+            # Select the period covered on a slider
             sliderInput('year', 'Year:',
                         min = 2009,
                         max = 2019,
                         value = 2019),
             
-            checkboxGroupInput('type', 'Select exoplanet type',
+            # Select exoplanet type as checkboxes
+            checkboxGroupInput('type', 'Select exoplanet type:',
                                c('Hot Jupiter' = 'hot_jupiters',
-                                 'Cold Gas Giant' = 'cold_gas_giants',
+                                 'Cold Gas Giants' = 'cold_gas_giants',
                                  'Rocky' = 'rocky',
-                                 'Other' = 'others', 
+                                 'Others' = 'others', 
                                  'All' = 'all'),
                                selected = c('all') )),
-                               # selected = levels(exo$type) )),
-            
         
-    # Show a plot of the generated distribution
+    # Show the plot 
     mainPanel(plotOutput("main"))
     )
 )
